@@ -176,7 +176,79 @@ $("results").innerHTML=labels.map((c,i)=>`<div class="art" style="--art:${palett
 });
 setMode("anime");
 
-// Holla Chimtu: local demo chat (no API key required).
-(()=>{const form=document.getElementById('chimtuForm'),input=document.getElementById('chimtuInput'),log=document.getElementById('chimtuLog');if(!form||!input||!log)return;function add(text,who){const el=document.createElement('div');el.className='chat-msg '+who;el.textContent=text;log.appendChild(el);log.scrollTop=log.scrollHeight;}function reply(msg){const t=msg.toLowerCase();if(t.includes('meme')||t.includes('funny'))return 'Meme idea 😂\nTop text: “Me: I will be productive today”\nBottom text: “Also me: asks Chimtu 47 random questions.”\nWant to turn it into an anime meme? Head to Anime pictures and use this idea as your prompt!';if(t.includes('anime')||t.includes('character')||t.includes('avatar'))return 'Let’s make something awesome! 🎨 Try describing the character’s hairstyle, outfit, colors, expression, and setting. You can open AI Avatar Creator or Anime pictures in DreamAI Studio to build your concept.';if(t.includes('joke'))return 'Why did the anime dog open a studio? 🐶 Because every great idea deserved a paws-itive start! ✨';if(t.includes('hello')||t.includes('hi')||t.includes('holla'))return 'Holla, friend! 🐾 I’m Chimtu, your cheerful creative sidekick. What shall we imagine today?';if(t.includes('help'))return 'I’m here to help! 💜 Tell me what you want to make—anime art, an avatar, a story, a video concept, or music—and we’ll plan it step by step.';if(t.includes('dreamai')||t.includes('website'))return 'DreamAI Studio is your creative playground! ✨ You can explore anime pictures, realistic art concepts, avatars, video ideas, stories, music tools, dubbing, and voiceovers. This demo chat is not connected to a real AI model yet.';return 'That sounds interesting! 🐶💜 I’m currently in demo mode, so my replies are sample responses rather than live AI answers. In Stage 2, we’ll connect a real AI service so I can answer a much wider range of questions. For now, tell me if you want help with an anime idea, avatar, meme, or story!';}function send(text){const msg=(text||'').trim();if(!msg)return;add(msg,'user');input.value='';setTimeout(()=>add(reply(msg),'bot'),250);}form.addEventListener('submit',e=>{e.preventDefault();send(input.value);});document.querySelectorAll('[data-chimtu]').forEach(b=>b.addEventListener('click',()=>send(b.getAttribute('data-chimtu'))));})();
+
+ // Holla Chimtu: real AI chat through Cloudflare Worker.
+ (() => {
+   const API_URL = "https://chimtu-ai.chaitanyamanchala54.workers.dev/";
+   const form = document.getElementById("chimtuForm");
+   const input = document.getElementById("chimtuInput");
+   const log = document.getElementById("chimtuLog");
+   const status = document.querySelector(".chat-status");
+   const hint = document.querySelector(".chat-hint");
+
+   if (!form || !input || !log) return;
+
+   if (status) status.textContent = "AI CHAT";
+   if (hint) hint.textContent = "Chimtu is ready to chat! Please avoid sharing passwords or other sensitive information.";
+
+   function add(text, who) {
+     const el = document.createElement("div");
+     el.className = "chat-msg " + who;
+     el.textContent = text;
+     log.appendChild(el);
+     log.scrollTop = log.scrollHeight;
+     return el;
+   }
+
+   async function send(text) {
+     const msg = (text || "").trim();
+     if (!msg) return;
+
+     add(msg, "user");
+     input.value = "";
+     input.disabled = true;
+
+     const sendButton = form.querySelector('button[type="submit"]');
+     if (sendButton) sendButton.disabled = true;
+
+     const pending = add("Chimtu is thinking... 🐾", "bot");
+
+     try {
+       const response = await fetch(API_URL, {
+         method: "POST",
+         headers: { "Content-Type": "application/json" },
+         body: JSON.stringify({ message: msg })
+       });
+
+       const data = await response.json();
+
+       if (!response.ok) {
+         throw new Error(data.error || "AI request failed");
+       }
+
+       pending.textContent = data.reply || "Chimtu couldn't create a reply. Please try again.";
+     } catch (err) {
+       console.error("Chimtu AI error:", err);
+       pending.textContent = "Sorry! I couldn't connect to my AI service. Please try again.";
+     } finally {
+       input.disabled = false;
+       if (sendButton) sendButton.disabled = false;
+       input.focus();
+       log.scrollTop = log.scrollHeight;
+     }
+   }
+
+   form.addEventListener("submit", e => {
+     e.preventDefault();
+     send(input.value);
+   });
+
+   document.querySelectorAll("[data-chimtu]").forEach(button => {
+     button.addEventListener("click", () => {
+       send(button.getAttribute("data-chimtu"));
+     });
+   });
+ })();
 </script>
-</body></html>
+</body>
+</html>
